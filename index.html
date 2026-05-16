@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Digit Recognizer — AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #13131e;
+    --border:  #1f1f35;
+    --accent:  #7c6af7;
+    --accent2: #f76a8a;
+    --text:    #e8e8f0;
+    --muted:   #5a5a7a;
+    --mono:    'Space Mono', monospace;
+    --sans:    'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124,106,247,0.15) 0%, transparent 60%);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(124,106,247,0.1);
+    border: 1px solid rgba(124,106,247,0.3);
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 800;
+    background: linear-gradient(135deg, #e8e8f0 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 13px;
+    margin-top: 10px;
+  }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    width: 100%;
+    max-width: 900px;
+    align-items: start;
+  }
+
+  @media (max-width: 700px) {
+    .workspace { grid-template-columns: 1fr; }
+  }
+
+  /* ── Canvas panel ── */
+  .canvas-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .canvas-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  #canvas {
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    cursor: crosshair;
+    background: #000;
+    display: block;
+    touch-action: none;
+    transition: border-color 0.2s;
+  }
+  #canvas:hover { border-color: var(--accent); }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  button {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 700;
+  }
+
+  #predictBtn {
+    background: var(--accent);
+    color: #fff;
+  }
+  #predictBtn:hover { background: #9581ff; transform: translateY(-1px); }
+  #predictBtn:active { transform: translateY(0); }
+
+  #clearBtn {
+    background: var(--border);
+    color: var(--muted);
+  }
+  #clearBtn:hover { background: #2a2a45; color: var(--text); }
+
+  /* ── Result panel ── */
+  .result-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .big-digit {
+    text-align: center;
+    padding: 24px;
+    background: var(--bg);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .digit-value {
+    font-size: 96px;
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-family: var(--mono);
+    transition: all 0.4s;
+  }
+
+  .confidence-text {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .confidence-value { color: #50e3a4; }
+
+  /* Bar chart */
+  .bars-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .bar-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    width: 18px;
+    color: var(--muted);
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .bar-fill.top { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+  .bar-pct {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    width: 40px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .idle-msg {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 13px;
+    text-align: center;
+    padding: 24px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+  }
+
+  footer {
+    margin-top: 40px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="tag">CNN · MNIST · 99% Accuracy</div>
+  <h1>Digit Recognizer</h1>
+  <p class="subtitle">Draw any digit (0–9) → AI predicts it in real time</p>
+</header>
+
+<div class="workspace">
+
+  <!-- LEFT: Drawing Canvas -->
+  <div class="canvas-panel">
+    <span class="canvas-label">Draw here</span>
+    <canvas id="canvas" width="280" height="280"></canvas>
+    <div class="btn-row">
+      <button id="predictBtn">⚡ Predict</button>
+      <button id="clearBtn">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div class="result-panel">
+
+    <div class="big-digit">
+      <div class="digit-value" id="digitValue">?</div>
+      <div class="confidence-text">
+        Confidence: <span class="confidence-value" id="confValue">—</span>
+      </div>
+    </div>
+
+    <div id="barsSection">
+      <div class="idle-msg">Draw a digit and hit ⚡ Predict</div>
+    </div>
+
+  </div>
+</div>
+
+<footer>CNN trained on 60,000 MNIST samples · TensorFlow + Flask</footer>
+
+<script>
+// ── Canvas Drawing ─────────────────────────────────────────────────────────────
+const canvas  = document.getElementById("canvas");
+const ctx     = canvas.getContext("2d");
+let drawing   = false;
+let lastX = 0, lastY = 0;
+
+ctx.lineWidth   = 22;
+ctx.lineCap     = "round";
+ctx.lineJoin    = "round";
+ctx.strokeStyle = "#ffffff";
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  if (e.touches) {
+    return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
+  }
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+canvas.addEventListener("mousedown",  e => { drawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
+canvas.addEventListener("mousemove",  e => {
+  if (!drawing) return;
+  const p = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  lastX = p.x; lastY = p.y;
+});
+canvas.addEventListener("mouseup",   () => drawing = false);
+canvas.addEventListener("mouseleave",() => drawing = false);
+
+// Touch support
+canvas.addEventListener("touchstart",  e => { e.preventDefault(); drawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; }, { passive: false });
+canvas.addEventListener("touchmove",   e => {
+  e.preventDefault();
+  if (!drawing) return;
+  const p = getPos(e);
+  ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+  lastX = p.x; lastY = p.y;
+}, { passive: false });
+canvas.addEventListener("touchend",  () => drawing = false);
+
+// ── Clear ─────────────────────────────────────────────────────────────────────
+document.getElementById("clearBtn").addEventListener("click", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById("digitValue").textContent = "?";
+  document.getElementById("confValue").textContent  = "—";
+  document.getElementById("barsSection").innerHTML =
+    '<div class="idle-msg">Draw a digit and hit ⚡ Predict</div>';
+});
+
+// ── Predict ───────────────────────────────────────────────────────────────────
+document.getElementById("predictBtn").addEventListener("click", async () => {
+  const imageData = canvas.toDataURL("image/png");
+
+  const btn = document.getElementById("predictBtn");
+  btn.textContent = "…";
+  btn.disabled = true;
+
+  try {
+    const res  = await fetch("/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: imageData }),
+    });
+    const data = await res.json();
+
+    document.getElementById("digitValue").textContent = data.digit;
+    document.getElementById("confValue").textContent  = data.confidence.toFixed(1) + "%";
+
+    // Build probability bars
+    const bars = document.getElementById("barsSection");
+    bars.innerHTML = `<div class="bars-title">Probability distribution</div>`;
+    for (let i = 0; i <= 9; i++) {
+      const pct = data.all_probs[i].toFixed(1);
+      const isTop = i === data.digit;
+      bars.innerHTML += `
+        <div class="bar-row">
+          <span class="bar-label">${i}</span>
+          <div class="bar-track">
+            <div class="bar-fill ${isTop ? "top" : ""}" style="width:${pct}%"></div>
+          </div>
+          <span class="bar-pct">${pct}%</span>
+        </div>`;
+    }
+  } catch (err) {
+    alert("Prediction failed: " + err.message);
+  } finally {
+    btn.textContent = "⚡ Predict";
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
